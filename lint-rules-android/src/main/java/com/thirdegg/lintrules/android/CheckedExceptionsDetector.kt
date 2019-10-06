@@ -18,7 +18,8 @@ val ISSUE_PATTERN = Issue.create("CheckedExceptions",
         "Checked exceptions for kotlin",
         CORRECTNESS,
         7,
-        WARNING,
+//         WARNING,
+        ERROR,
         Implementation(CheckedExceptionsDetector::class.java, EnumSet.of(Scope.JAVA_FILE))
 )
 

@@ -1,14 +1,13 @@
 package com.thirdegg.lintrules.android
 
-import com.android.tools.lint.detector.api.Category.Companion.CORRECTNESS
-import com.android.tools.lint.detector.api.Severity.WARNING
 import com.android.tools.lint.client.api.UElementHandler
 import com.android.tools.lint.detector.api.*
+import com.android.tools.lint.detector.api.Category.Companion.CORRECTNESS
 import com.intellij.psi.PsiType
 import org.jetbrains.uast.*
 import org.jetbrains.uast.kotlin.KotlinUFunctionCallExpression
-import java.util.*
 import org.jetbrains.uast.visitor.AbstractUastVisitor
+import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
@@ -18,8 +17,8 @@ val ISSUE_PATTERN = Issue.create("CheckedExceptions",
         "Checked exceptions for kotlin",
         CORRECTNESS,
         7,
-//         WARNING,
-        ERROR,
+        Severity.ERROR,
+//        WARNING,
         Implementation(CheckedExceptionsDetector::class.java, EnumSet.of(Scope.JAVA_FILE))
 )
 
@@ -27,9 +26,9 @@ class CheckedExceptionsDetector : Detector(), Detector.UastScanner {
 
     override fun getApplicableUastTypes() = listOf<Class<out UElement>>(UCallExpression::class.java)
 
-    fun <T : UElement> findParentByUast(item:UElement, clazz:Class<T>):T? {
+    fun <T : UElement> findParentByUast(item: UElement, clazz: Class<T>): T? {
         var parent = item.uastParent
-        while (parent!=null) {
+        while (parent != null) {
             if (clazz.isInstance(parent)) {
                 return (parent as T)
             }
@@ -38,11 +37,11 @@ class CheckedExceptionsDetector : Detector(), Detector.UastScanner {
         return null
     }
 
-    fun findExceptionClassName(catchClause: UCatchClause):String {
+    fun findExceptionClassName(catchClause: UCatchClause): String {
         return catchClause.parameters[0].psi.type.canonicalText
     }
 
-    fun findNamedExpressionsInAnnotation(uAnnotation: UAnnotation):ArrayList<String?> {
+    fun findNamedExpressionsInAnnotation(uAnnotation: UAnnotation): ArrayList<String?> {
         val namedExpressions = ArrayList<String?>()
         for (uNamedExpression in uAnnotation.attributeValues) {
             if (uNamedExpression.expression is UClassLiteralExpression) {
@@ -61,7 +60,7 @@ class CheckedExceptionsDetector : Detector(), Detector.UastScanner {
         return namedExpressions
     }
 
-    fun findRecursiveExtentionsInClass(superTypes: Array<PsiType>):HashSet<String> {
+    fun findRecursiveExtentionsInClass(superTypes: Array<PsiType>): HashSet<String> {
         val classes = HashSet<String>()
         superTypes.forEach {
             classes.addAll(findRecursiveExtentionsInClass(it.superTypes))
@@ -70,7 +69,7 @@ class CheckedExceptionsDetector : Detector(), Detector.UastScanner {
         return classes
     }
 
-    override fun createUastHandler(context: JavaContext) = object:UElementHandler() {
+    override fun createUastHandler(context: JavaContext) = object : UElementHandler() {
 
         init {
 //            println(context.uastFile?.asRecursiveLogString())
@@ -85,14 +84,14 @@ class CheckedExceptionsDetector : Detector(), Detector.UastScanner {
             val haveTryCatch = ArrayList<String>()
 
             findParentByUast(parentNode, UTryExpression::class.java).also { tryException ->
-                tryException?.catchClauses?:return@also
+                tryException?.catchClauses ?: return@also
                 for (catchCause in tryException.catchClauses) {
                     haveTryCatch.add(findExceptionClassName(catchCause))
                 }
             }
 
 
-            findParentByUast(parentNode,UAnnotationMethod::class.java)?.also { throwsAnnotation->
+            findParentByUast(parentNode, UAnnotationMethod::class.java)?.also { throwsAnnotation ->
                 for (annotation in throwsAnnotation.annotations) {
                     if (annotation.qualifiedName != "kotlin.jvm.Throws") continue
                     for (throwsException in findNamedExpressionsInAnnotation(annotation)) {
@@ -106,7 +105,7 @@ class CheckedExceptionsDetector : Detector(), Detector.UastScanner {
             uMethod.accept(object : AbstractUastVisitor() {
                 override fun visitAnnotation(node: UAnnotation): Boolean {
 
-                    if (node.qualifiedName!="kotlin.jvm.Throws") return super.visitAnnotation(node)
+                    if (node.qualifiedName != "kotlin.jvm.Throws") return super.visitAnnotation(node)
 
                     node.accept(object : AbstractUastVisitor() {
 
@@ -114,14 +113,14 @@ class CheckedExceptionsDetector : Detector(), Detector.UastScanner {
 
                             val arrayList = ArrayList<String>()
 
-                            val clazzName = node.type?.canonicalText?:return super.visitClassLiteralExpression(node)
+                            val clazzName = node.type?.canonicalText ?: return super.visitClassLiteralExpression(node)
 
                             arrayList.add(clazzName)
 
                             if (haveTryCatch.contains(clazzName))
                                 return super.visitClassLiteralExpression(node)
 
-                            if (node.type?.superTypes!=null) {
+                            if (node.type?.superTypes != null) {
                                 arrayList.addAll(findRecursiveExtentionsInClass(node.type?.superTypes!!))
                             }
 
@@ -156,11 +155,12 @@ class CheckedExceptionsDetector : Detector(), Detector.UastScanner {
                             if (node is KotlinUFunctionCallExpression) {
                                 //TODO kotlin.Exception() not catch
                                 val clazz = node.resolve()
-                                val clazzName = clazz?.containingClass?.qualifiedName?:return super.visitCallExpression(node)
+                                val clazzName = clazz?.containingClass?.qualifiedName
+                                        ?: return super.visitCallExpression(node)
                                 if (haveTryCatch.contains(clazzName)) return super.visitCallExpression(node)
 
                                 var superClass = clazz.containingClass?.superClass
-                                while (superClass!=null) {
+                                while (superClass != null) {
                                     if (haveTryCatch.contains(superClass?.qualifiedName))
                                         return super.visitCallExpression(node)
                                     superClass = superClass?.superClass

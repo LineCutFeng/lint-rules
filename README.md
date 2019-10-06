@@ -1,5 +1,5 @@
 ![GitHub](https://img.shields.io/github/license/thirdegg/lint-rules.svg)
-[![JitPack](https://jitpack.io/v/thirdegg/lint-rules.svg)](https://jitpack.io/#thirdegg/lint-rules)
+[![JitPack](https://jitpack.io/v/LineCutFeng/lint-rules.svg)](https://jitpack.io/#LineCutFeng/lint-rules)
 # Android lint rules
 
 Add to your project ```build.gradle```:
